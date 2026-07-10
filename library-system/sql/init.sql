@@ -74,7 +74,7 @@ CREATE TABLE borrow_record (
 
 TRUNCATE TABLE sys_user;
 INSERT INTO sys_user (username, password, real_name, role, status)
-VALUES ('admin', '123456', '系统管理员', 'ADMIN', 1);
+VALUES ('admin', '123456', '系统管理员', 'SUPER_ADMIN', 1);
 
 INSERT INTO reader_info (reader_no, name, gender, phone, class_name, status) VALUES
 ('R2026001', '张明', '男', '13800000001', '软件工程一班', 1),

@@ -1,5 +1,6 @@
 ﻿<template>
   <div class="page-shell">
+    <!-- 用户列表：支持搜索、分页、新增、编辑和删除。 -->
     <section class="page-panel table-panel">
       <div class="toolbar table-toolbar">
         <div>
@@ -13,6 +14,7 @@
         </div>
       </div>
 
+      <!-- status=1 显示正常，status=0 显示停用。 -->
       <el-table :data="tableData" v-loading="loading" stripe class="data-table">
         <el-table-column prop="readerNo" label="用户账号" width="150" />
         <el-table-column prop="password" label="密码" width="120" />
@@ -33,6 +35,7 @@
         </el-table-column>
       </el-table>
 
+      <!-- 分页器修改页码或每页数量后，会重新调用 fetch。 -->
       <div class="pager-wrap">
         <el-pagination
           v-model:current-page="current"
@@ -46,6 +49,7 @@
       </div>
     </section>
 
+    <!-- 新增和编辑共用表单，编辑时额外显示账号状态开关。 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑用户' : '新增用户'" width="520px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="92px">
         <el-form-item label="账号" prop="readerNo"><el-input v-model="form.readerNo" placeholder="请输入 6 位及以上账号" /></el-form-item>
@@ -70,6 +74,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { addReader, deleteReader, getReaders, updateReader } from '@/api'
 
+// -------------------- 查询与分页状态 --------------------
 const loading = ref(false)
 const tableData = ref([])
 const current = ref(1)
@@ -80,8 +85,10 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 
+// 创建干净的默认表单。状态 1 表示新用户默认启用。
 const defaultForm = () => ({ id: null, readerNo: '', password: '', name: '', gender: '男', phone: '', className: '', status: 1 })
 const form = reactive(defaultForm())
+// 账号至少 6 位；密码不限制组成，但不能为空；姓名为必填项。
 const rules = {
   readerNo: [
     { required: true, message: '请输入账号', trigger: 'blur' },
@@ -91,6 +98,7 @@ const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
 }
 
+/** 分页查询用户，关键词交给后端匹配账号、姓名或电话。 */
 async function fetch() {
   loading.value = true
   try {
@@ -102,12 +110,14 @@ async function fetch() {
   }
 }
 
+/** 打开新增或编辑弹窗，并把当前行复制到表单。 */
 function openDialog(row) {
   isEdit.value = !!row
   Object.assign(form, row ? { ...row } : defaultForm())
   dialogVisible.value = true
 }
 
+/** 先执行前端校验，再调用新增或修改接口。 */
 async function doSave() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -122,6 +132,7 @@ async function doSave() {
   fetch()
 }
 
+/** 确认后删除读者，后端还会检查关联借阅记录。 */
 async function doDelete(id) {
   await ElMessageBox.confirm('确定删除这位读者吗？', '提示', { type: 'warning' })
   await deleteReader(id)
@@ -129,10 +140,12 @@ async function doDelete(id) {
   fetch()
 }
 
+// 页面挂载完成后立即请求第一页用户数据。
 onMounted(fetch)
 </script>
 
 <style scoped>
+/* 用户管理页面的局部布局样式。 */
 .table-panel { padding: 22px; }
 .table-toolbar { margin-bottom: 18px; }
 .table-toolbar p { margin-top: 6px; color: #6b7280; }

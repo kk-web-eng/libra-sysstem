@@ -1,5 +1,6 @@
 ﻿<template>
   <main class="user-login">
+    <!-- 左侧说明区域，同时提供返回管理员登录的入口。 -->
     <section class="hero">
       <router-link class="admin-link" to="/login">管理员登录</router-link>
       <div>
@@ -8,6 +9,7 @@
         <span>使用 6 位及以上账号登录后，可以查询馆藏、借书和续借。</span>
       </div>
     </section>
+    <!-- 登录和注册共用同一个账号密码表单。 -->
     <section class="panel">
       <el-tabs v-model="mode" stretch>
         <el-tab-pane label="登录" name="login" />
@@ -29,11 +31,17 @@ import { ElMessage } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import { userLogin, userRegister } from '@/api'
 
+// 登录成功后使用路由进入读者首页。
 const router = useRouter()
+
+// mode 的值为 login 或 register，对应上方两个标签页。
 const mode = ref('login')
 const formRef = ref()
 const loading = ref(false)
+// 注册只需要账号和密码，不要求填写姓名和电话。
 const form = reactive({ account: '', password: '' })
+
+// 账号至少 6 位；可以包含数字、字母或其他符号。密码只要求非空。
 const rules = {
   account: [
     { required: true, message: '请输入账号', trigger: 'blur' },
@@ -42,6 +50,11 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+/**
+ * 登录/注册共用的提交方法。
+ * 注册模式会先创建账号，再使用相同账号密码登录。
+ * 登录成功后把 readerId 写入 sessionStorage，路由守卫用它判断读者身份。
+ */
 async function submit() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -49,6 +62,7 @@ async function submit() {
   try {
     if (mode.value === 'register') await userRegister({ ...form })
     const res = await userLogin(form.account, form.password)
+    // readerId 用于登录判断；readerName 用于页面右上角显示。
     sessionStorage.setItem('readerId', res.data.id)
     sessionStorage.setItem('readerName', res.data.name)
     ElMessage.success(mode.value === 'login' ? '登录成功' : '注册成功')
@@ -60,6 +74,7 @@ async function submit() {
 </script>
 
 <style scoped>
+/* 读者登录页的双栏布局与响应式样式。 */
 .user-login { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr) 420px; background: #eef2f7; }
 .hero { position: relative; display: flex; align-items: flex-end; padding: 56px; color: #fff; background: linear-gradient(90deg, rgba(15,23,42,.9), rgba(15,23,42,.38)), url('https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=1600&q=80') center/cover; }
 .admin-link { position: absolute; top: 28px; right: 28px; height: 38px; padding: 8px 14px; border: 1px solid rgba(255,255,255,.36); border-radius: 8px; }

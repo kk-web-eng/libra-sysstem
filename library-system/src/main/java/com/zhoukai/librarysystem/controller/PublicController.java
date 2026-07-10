@@ -12,12 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/public")
+/** 提供不登录也能访问的公共馆藏查询接口。 */
 public class PublicController {
 
     @Autowired
     private BookService bookService;
 
     @GetMapping("/books")
+    // 查询公开图书目录，默认每页 12 本。
     public Result<Page<BookInfo>> books(
             @RequestParam(defaultValue = "1") int current,
             @RequestParam(defaultValue = "12") int size,
@@ -27,6 +29,7 @@ public class PublicController {
     }
 
     @GetMapping("/categories")
+    // 给公共页面提供分类筛选选项。
     public Result<?> categories() {
         return Result.ok(bookService.categories());
     }

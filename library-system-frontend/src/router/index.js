@@ -1,4 +1,5 @@
-﻿import { createRouter, createWebHistory } from 'vue-router'
+﻿
+import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
@@ -33,7 +34,7 @@ const routes = [
       { path: 'books', name: 'Books', component: () => import('@/views/Books.vue'), meta: { title: '图书管理' } },
       { path: 'readers', name: 'Readers', component: () => import('@/views/Readers.vue'), meta: { title: '用户管理' } },
       { path: 'borrows', name: 'Borrows', component: () => import('@/views/Borrows.vue'), meta: { title: '借阅管理' } },
-      { path: 'admins', name: 'Admins', component: () => import('@/views/Admins.vue'), meta: { title: '管理员管理' } }
+      { path: 'admins', name: 'Admins', component: () => import('@/views/Admins.vue'), meta: { title: '管理员管理', superAdmin: true } }
     ]
   }
 ]
@@ -45,11 +46,15 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const userId = sessionStorage.getItem('userId')
+  const username = sessionStorage.getItem('username')
   const readerId = sessionStorage.getItem('readerId')
+  const role = sessionStorage.getItem('role')
   if (to.meta.user && !readerId) {
     next('/user/login')
   } else if (!to.meta.public && !to.meta.user && to.path !== '/login' && !userId) {
     next('/login')
+  } else if (to.meta.superAdmin && role !== 'SUPER_ADMIN' && username !== 'admin') {
+    next('/dashboard')
   } else {
     next()
   }

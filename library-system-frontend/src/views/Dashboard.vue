@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { markRaw, onMounted, ref } from 'vue'
+import { computed, markRaw, onMounted, ref } from 'vue'
 import { Collection, DataAnalysis, Notebook, Refresh, UserFilled, WarningFilled } from '@element-plus/icons-vue'
 import { getDashboard } from '@/api'
 
@@ -53,13 +53,15 @@ const cards = ref([
   { label: '借阅中', value: 0, icon: markRaw(Notebook), color: '#d97706', bg: '#fef3c7' },
   { label: '逾期数量', value: 0, icon: markRaw(WarningFilled), color: '#dc2626', bg: '#fee2e2' }
 ])
-const quickLinks = [
+const isSuperAdmin = computed(() => sessionStorage.getItem('role') === 'SUPER_ADMIN' || sessionStorage.getItem('username') === 'admin')
+const allQuickLinks = [
   { path: '/books', title: '维护馆藏', desc: '新增、编辑和清点图书库存', icon: markRaw(Collection) },
   { path: '/readers', title: '用户管理', desc: '维护用户账号、密码和联系方式', icon: markRaw(UserFilled) },
   { path: '/borrows', title: '借阅登记', desc: '登记读者信息、图书和借还时间', icon: markRaw(Notebook) },
-  { path: '/admins', title: '管理员管理', desc: '维护后台账号和启用状态', icon: markRaw(UserFilled) },
+  { path: '/admins', title: '管理员管理', desc: '维护后台账号和启用状态', icon: markRaw(UserFilled), superAdmin: true },
   { path: '/client', title: '馆藏查询', desc: '查看后台馆藏检索页面', icon: markRaw(DataAnalysis) }
 ]
+const quickLinks = computed(() => allQuickLinks.filter(item => !item.superAdmin || isSuperAdmin.value))
 
 async function fetch() {
   loading.value = true

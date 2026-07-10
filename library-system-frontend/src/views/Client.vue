@@ -1,5 +1,6 @@
 ﻿<template>
   <main class="client-page">
+    <!-- 顶部区域：品牌、返回后台入口、关键词和分类筛选。 -->
     <header class="client-hero">
       <nav class="client-nav">
         <div class="brand">
@@ -15,10 +16,12 @@
         <p>PUBLIC CATALOG</p>
         <h1>馆藏查询</h1>
         <span>检索馆藏图书，查看可借数量、出版社、分类与书架位置。</span>
+        <!-- 回车、搜索按钮和清空输入框都会调用 search。 -->
         <div class="search-bar">
           <el-input v-model="keyword" size="large" placeholder="输入书名或 ISBN" clearable :prefix-icon="Search" @keyup.enter="search" @clear="search" />
           <el-button size="large" type="primary" :icon="Search" @click="search">搜索</el-button>
         </div>
+        <!-- 分类按钮来自数据库，空字符串表示查询全部分类。 -->
         <div class="category-filter">
           <button :class="{ active: !category }" @click="chooseCategory('')">全部</button>
           <button v-for="item in categories" :key="item" :class="{ active: category === item }" @click="chooseCategory(item)">{{ item }}</button>
@@ -26,6 +29,7 @@
       </section>
     </header>
 
+    <!-- 馆藏目录：公开页面，不登录也可以查询。 -->
     <section class="catalog-section">
       <div class="catalog-head">
         <div>
@@ -35,8 +39,10 @@
         <el-button :icon="Refresh" @click="fetch" :loading="loading">刷新</el-button>
       </div>
 
+      <!-- 请求结束且没有结果时显示空状态。 -->
       <el-empty v-if="!loading && books.length === 0" description="暂无匹配图书" />
       <div v-else class="book-grid" v-loading="loading">
+        <!-- v-for 根据后端返回的每本图书生成一张馆藏卡片。 -->
         <article v-for="book in books" :key="book.id" class="book-card">
           <div class="book-cover">
             <span>{{ coverName(book.bookName) }}</span>
@@ -60,6 +66,7 @@
         </article>
       </div>
 
+      <!-- 分页器修改 current 或 size 后重新查询。 -->
       <div class="pager-wrap">
         <el-pagination
           v-model:current-page="current"
@@ -80,6 +87,7 @@ import { onMounted, ref } from 'vue'
 import { Back, Location, Refresh, Search, Tickets } from '@element-plus/icons-vue'
 import { getPublicBooks, getPublicCategories } from '@/api'
 
+// -------------------- 查询和分页状态 --------------------
 const loading = ref(false)
 const books = ref([])
 const keyword = ref('')
@@ -89,25 +97,34 @@ const current = ref(1)
 const size = ref(12)
 const total = ref(0)
 
+/** 取书名前两个字符，生成没有真实封面时的文字封面。 */
 function coverName(name = '') {
   return name.trim().slice(0, 2) || '书'
 }
 
+/** 计算当前可借数量占馆藏总数的百分比。 */
 function stockPercent(book) {
   if (!book.totalCount) return 0
   return Math.round(((book.availableCount || 0) / book.totalCount) * 100)
 }
 
+/** 新搜索从第一页开始，避免保留旧查询的页码。 */
 function search() {
   current.value = 1
   fetch()
 }
 
+/** 选择分类后立即重新查询。 */
 function chooseCategory(value) {
   category.value = value
   search()
 }
 
+/**
+ * 请求公共馆藏接口。
+ * 关键词：分页、关键词、分类、加载状态。
+ * 该接口是公开接口，因此访客不登录也能查询。
+ */
 async function fetch() {
   loading.value = true
   try {
@@ -119,11 +136,13 @@ async function fetch() {
   }
 }
 
+/** 从后端读取当前存在的图书分类，用于生成筛选按钮。 */
 async function fetchCategories() {
   const res = await getPublicCategories()
   categories.value = res.data || []
 }
 
+// 页面首次显示时加载分类和第一页馆藏。
 onMounted(() => {
   fetchCategories()
   fetch()
@@ -131,6 +150,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* 公共馆藏页的背景、图书卡片和响应式布局。 */
 .client-page {
   min-height: 100vh;
   background: #f5f7fb;

@@ -18,6 +18,10 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+/**
+ * 图书流转的核心业务类。
+ * 借书、归还和续借都会在这里校验规则，并同步修改借阅记录与可借库存。
+ */
 public class BorrowServiceImpl implements BorrowService {
 
     @Autowired
@@ -30,18 +34,21 @@ public class BorrowServiceImpl implements BorrowService {
     @Override
     @Transactional
     public void borrow(Long bookId, Long readerId, Long operatorId) {
+    // 使用默认规则借书，借出日为今天，应还日为 30 天后。
         createBorrow(bookId, readerId, LocalDate.now(), LocalDate.now().plusDays(30), operatorId);
     }
 
     @Override
     @Transactional
     public void borrow(Map<String, Object> body, Long operatorId) {
+        // 管理员端借书登记：先从前端 JSON 中取出字段，并去掉首尾空格。
         String readerName = text(body.get("readerName"));
         String readerPhone = text(body.get("readerPhone"));
         String bookIsbn = text(body.get("bookIsbn"));
         String bookName = text(body.get("bookName"));
         LocalDate borrowDate = parseDate(body.get("borrowDate"), "借出时间");
         LocalDate dueDate = parseDate(body.get("dueDate"), "还书日期");
+        // 日期必须先通过统一规则，避免保存不合法的借阅记录。
         validateBorrowRange(borrowDate, dueDate);
 
         if (readerName.isBlank()) throw new RuntimeException("请输入读者姓名");
@@ -49,14 +56,18 @@ public class BorrowServiceImpl implements BorrowService {
         if (bookIsbn.isBlank()) throw new RuntimeException("请输入书籍编号");
         if (bookName.isBlank()) throw new RuntimeException("请输入书籍名称");
 
+        // 先按编号查书，找不到时再按书名查。
         BookInfo book = findBook(bookIsbn, bookName);
         if (book == null) throw new RuntimeException("未找到对应图书，请检查书籍编号或名称");
         if (book.getAvailableCount() <= 0) throw new RuntimeException("该图书库存不足，无法借出");
 
+        // 管理员不需要先去用户管理新增读者。
+        // 这里把 10 位电话当作临时 readerNo：存在就更新，不存在就自动创建。
         ReaderInfo reader = readerInfoMapper.selectOne(new LambdaQueryWrapper<ReaderInfo>()
                 .eq(ReaderInfo::getReaderNo, readerPhone)
                 .last("LIMIT 1"));
         if (reader == null) {
+            // 自动创建的临时读者使用默认密码，之后仍可在用户管理中修改。
             reader = new ReaderInfo();
             reader.setReaderNo(readerPhone);
             reader.setPassword("123456");
@@ -65,18 +76,21 @@ public class BorrowServiceImpl implements BorrowService {
             reader.setStatus(1);
             readerInfoMapper.insert(reader);
         } else {
+            // 已存在时同步姓名和电话，并恢复为启用状态。
             reader.setName(readerName);
             reader.setPhone(readerPhone);
             reader.setStatus(1);
             readerInfoMapper.updateById(reader);
         }
 
+        // 最后统一执行“扣库存 + 写借阅记录”。
         createBorrowRecord(book, reader, borrowDate, dueDate, operatorId);
     }
 
     @Override
     @Transactional
     public void borrowByReader(Long bookId, Long readerId, LocalDate dueDate) {
+        // 读者端自助借书；没有传日期时默认 30 天后归还。
         LocalDate borrowDate = LocalDate.now();
         createBorrow(bookId, readerId, borrowDate, dueDate == null ? borrowDate.plusDays(30) : dueDate, null);
     }

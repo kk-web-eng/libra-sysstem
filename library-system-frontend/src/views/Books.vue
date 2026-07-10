@@ -1,5 +1,6 @@
 ﻿<template>
   <div class="page-shell">
+    <!-- 图书列表区域：包含搜索、分页和增删改操作。 -->
     <section class="page-panel table-panel">
       <div class="toolbar table-toolbar">
         <div>
@@ -13,12 +14,14 @@
         </div>
       </div>
 
+      <!-- 表格数据来自 fetch 方法，loading 为 true 时显示加载动画。 -->
       <el-table :data="tableData" v-loading="loading" stripe class="data-table">
         <el-table-column prop="isbn" label="ISBN" width="145" />
         <el-table-column prop="bookName" label="书名" min-width="180" show-overflow-tooltip />
         <el-table-column prop="author" label="作者" width="130" show-overflow-tooltip />
         <el-table-column prop="publisher" label="出版社" width="150" show-overflow-tooltip />
         <el-table-column prop="category" label="分类" width="110" />
+        <!-- 库存列：进度条表示“可借数量 / 馆藏总数”。 -->
         <el-table-column label="库存" width="150">
           <template #default="{ row }">
             <el-progress :percentage="stockPercent(row)" :stroke-width="8" :show-text="false" />
@@ -34,6 +37,7 @@
         </el-table-column>
       </el-table>
 
+      <!-- 分页器修改页码或每页数量后，会重新调用 fetch。 -->
       <div class="pager-wrap">
         <el-pagination
           v-model:current-page="current"
@@ -47,6 +51,7 @@
       </div>
     </section>
 
+    <!-- 新增和编辑共用一个弹窗，通过 isEdit 区分当前操作。 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑图书' : '新增图书'" width="560px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="88px">
         <el-form-item label="ISBN" prop="isbn"><el-input v-model="form.isbn" placeholder="请输入 ISBN 或图书编号" /></el-form-item>
@@ -72,6 +77,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Edit, Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { addBook, deleteBook, getBooks, updateBook } from '@/api'
 
+// -------------------- 页面状态 --------------------
+// ref 保存会变化的简单值，值变化后页面会自动重新渲染。
 const loading = ref(false)
 const tableData = ref([])
 const current = ref(1)
@@ -82,19 +89,28 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
 
+// 每次新增时创建新对象，避免保留上一次编辑的数据。
 const defaultForm = () => ({ id: null, isbn: '', bookName: '', author: '', publisher: '', category: '', description: '', totalCount: 1, location: '' })
+// reactive 让表单对象中的字段都具有响应式能力。
 const form = reactive(defaultForm())
+// 保存前由 Element Plus 检查必填项。
 const rules = {
   isbn: [{ required: true, message: '请输入 ISBN', trigger: 'blur' }],
   bookName: [{ required: true, message: '请输入书名', trigger: 'blur' }],
   totalCount: [{ required: true, message: '请输入馆藏数量', trigger: 'blur' }]
 }
 
+/** 计算库存百分比，用于库存进度条。 */
 function stockPercent(row) {
   if (!row.totalCount) return 0
   return Math.round(((row.availableCount || 0) / row.totalCount) * 100)
 }
 
+/**
+ * 分页查询图书。
+ * 关键词：分页、搜索、加载状态。
+ * finally 一定会执行，因此请求结束后加载动画总能关闭。
+ */
 async function fetch() {
   loading.value = true
   try {
@@ -106,12 +122,14 @@ async function fetch() {
   }
 }
 
+/** 传入 row 表示编辑；不传 row 表示新增。 */
 function openDialog(row) {
   isEdit.value = !!row
   Object.assign(form, row ? { ...row } : defaultForm())
   dialogVisible.value = true
 }
 
+/** 校验表单后，根据 isEdit 调用新增或修改接口。 */
 async function doSave() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -126,6 +144,7 @@ async function doSave() {
   fetch()
 }
 
+/** 删除前先确认，防止误操作。 */
 async function doDelete(id) {
   await ElMessageBox.confirm('确定删除这本图书吗？', '提示', { type: 'warning' })
   await deleteBook(id)
@@ -133,10 +152,12 @@ async function doDelete(id) {
   fetch()
 }
 
+// 组件第一次显示时自动加载图书列表。
 onMounted(fetch)
 </script>
 
 <style scoped>
+/* scoped 表示这些样式只作用于当前页面。 */
 .table-panel { padding: 22px; }
 .table-toolbar { margin-bottom: 18px; }
 .table-toolbar p { margin-top: 6px; color: #6b7280; }

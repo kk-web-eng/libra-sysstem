@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Service
+/** 实现图书查询、分类、新增、库存调整和删除规则。 */
 public class BookServiceImpl implements BookService {
 
     @Autowired
@@ -28,13 +29,16 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public Page<BookInfo> page(int current, int size, String keyword, String category) {
+        // Page 保存当前页、每页数量以及查询后的总条数和记录列表。
         Page<BookInfo> page = new Page<>(current, size);
         LambdaQueryWrapper<BookInfo> wrapper = new LambdaQueryWrapper<>();
+        // 关键词同时匹配书名和 ISBN。
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(item -> item.like(BookInfo::getBookName, keyword)
                     .or()
                     .like(BookInfo::getIsbn, keyword));
         }
+        // 分类不为空时追加精确匹配条件。
         if (category != null && !category.isBlank()) {
             wrapper.eq(BookInfo::getCategory, category);
         }
@@ -44,6 +48,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public List<String> categories() {
+        // DISTINCT 只返回不重复的分类，并排除 null 和空字符串。
         QueryWrapper<BookInfo> wrapper = new QueryWrapper<>();
         wrapper.select("DISTINCT category")
                 .isNotNull("category")
@@ -62,12 +67,15 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public void save(BookInfo book) {
+        // 新书还没有借出记录，所以初始可借数量等于馆藏总数量。
         book.setAvailableCount(book.getTotalCount());
         bookInfoMapper.insert(book);
     }
 
     @Override
     public void update(BookInfo book) {
+        // 修改馆藏总数时不能直接重置可借数量，否则会忘记已经借出的数量。
+        // 例如原来总数 5、可借 3，说明借出 2 本；总数改成 7 后，可借应变成 5。
         BookInfo old = bookInfoMapper.selectById(book.getId());
         int diff = book.getTotalCount() - old.getTotalCount();
         book.setAvailableCount(old.getAvailableCount() + diff);
@@ -76,6 +84,7 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public void delete(Long id) {
+        // 删除前检查是否还有 status=0 的记录，避免借阅记录指向不存在的图书。
         LambdaQueryWrapper<BorrowRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BorrowRecord::getBookId, id)
                .eq(BorrowRecord::getStatus, 0);

@@ -14,6 +14,11 @@ request.interceptors.response.use(
       window.location.href = '/login'
       return Promise.reject(new Error(res.msg))
     }
+    if (res.code === 403) {
+      ElMessage.error(res.msg || '没有权限')
+      window.location.href = '/dashboard'
+      return Promise.reject(new Error(res.msg))
+    }
     if (res.code !== 200) {
       ElMessage.error(res.msg || '请求失败')
       return Promise.reject(new Error(res.msg))

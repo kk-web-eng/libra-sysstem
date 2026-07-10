@@ -16,6 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dashboard")
+/** 为后台首页汇总运营数据。 */
 public class DashboardController {
 
     @Autowired
@@ -28,8 +29,10 @@ public class DashboardController {
     @GetMapping
     public Result<Map<String, Object>> stats() {
         Map<String, Object> data = new HashMap<>();
+        // 图书和用户使用整表数量；借阅数据根据 status 分组统计。
         data.put("bookCount", bookInfoMapper.selectCount(null));
         data.put("readerCount", readerInfoMapper.selectCount(null));
+        // status：0 借阅中，1 已归还，2 逾期。
         data.put("borrowingCount", borrowRecordMapper.selectCount(
                 new LambdaQueryWrapper<BorrowRecord>().eq(BorrowRecord::getStatus, 0)));
         data.put("overdueCount", borrowRecordMapper.selectCount(

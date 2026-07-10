@@ -22,7 +22,7 @@
         <el-menu-item index="/borrows">
           <el-icon><Notebook /></el-icon><span>借阅管理</span>
         </el-menu-item>
-        <el-menu-item index="/admins">
+        <el-menu-item v-if="isSuperAdmin" index="/admins">
           <el-icon><Avatar /></el-icon><span>管理员管理</span>
         </el-menu-item>
       </el-menu>
@@ -44,6 +44,7 @@
           <h1>{{ $route.meta.title }}</h1>
         </div>
         <div class="header-actions">
+          <el-tag :type="isSuperAdmin ? 'danger' : 'info'" effect="plain" round>{{ roleText }}</el-tag>
           <el-tag effect="plain" round>{{ userStore.realName || userStore.username || '管理员' }}</el-tag>
           <el-button :icon="SwitchButton" @click="doLogout">退出</el-button>
         </div>
@@ -66,6 +67,8 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const activeMenu = computed(() => route.path)
+const isSuperAdmin = computed(() => userStore.role === 'SUPER_ADMIN' || userStore.username === 'admin')
+const roleText = computed(() => isSuperAdmin.value ? '系统管理员' : '普通管理员')
 
 async function doLogout() {
   await logout().catch(() => {})

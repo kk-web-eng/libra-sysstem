@@ -1,5 +1,6 @@
 ﻿<template>
   <main class="user-page">
+    <!-- 页面头部：显示当前读者名称和退出按钮。 -->
     <header class="user-head">
       <div>
         <p>云图书馆</p>
@@ -11,6 +12,7 @@
       </div>
     </header>
 
+    <!-- 馆藏区域：分类、关键词查询以及借书入口。 -->
     <section class="catalog">
       <div class="toolbar">
         <div>
@@ -25,6 +27,7 @@
         </div>
       </div>
 
+      <!-- 每本图书使用一张卡片展示；库存为 0 时借书按钮不可用。 -->
       <div class="book-grid" v-loading="bookLoading">
         <article v-for="book in books" :key="book.id" class="book-card">
           <el-tag size="small">{{ book.category || '未分类' }}</el-tag>
@@ -37,6 +40,7 @@
       </div>
     </section>
 
+    <!-- 当前读者的借阅记录，只显示登录账号自己的数据。 -->
     <section class="records">
       <div class="toolbar">
         <div>
@@ -51,6 +55,7 @@
         <el-table-column prop="borrowDate" label="借出日期" width="120" />
         <el-table-column prop="dueDate" label="还书日期" width="120" />
         <el-table-column prop="returnDate" label="实际归还" width="120" />
+        <!-- status：0=借阅中，1=已归还，2=逾期。 -->
         <el-table-column label="状态" width="100">
           <template #default="{ row }"><el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag></template>
         </el-table-column>
@@ -60,6 +65,7 @@
       </el-table>
     </section>
 
+    <!-- 借书弹窗：先选择应还日期，再向后端发送借书请求。 -->
     <el-dialog v-model="borrowDialog" title="选择还书日期" width="420px">
       <el-form label-position="top">
         <el-form-item label="图书">
@@ -75,6 +81,7 @@
       </template>
     </el-dialog>
 
+    <!-- 续借弹窗：允许用户自定义新的应还日期。 -->
     <el-dialog v-model="renewDialog" title="选择续借后的还书日期" width="420px">
       <el-form label-position="top">
         <el-form-item label="图书">
@@ -99,59 +106,88 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
 import { getPublicBooks, getPublicCategories, getUserBorrows, renewUserBorrow, userBorrow, userLogout } from '@/api'
 
+// 路由对象用于退出后返回读者登录页。
 const router = useRouter()
+
+// 登录时保存的读者名称，只用于页面显示。
 const readerName = sessionStorage.getItem('readerName')
+
+// -------------------- 查询数据 --------------------
 const keyword = ref('')
 const category = ref('')
 const categories = ref([])
 const books = ref([])
 const records = ref([])
+// -------------------- 加载和弹窗状态 --------------------
 const bookLoading = ref(false)
 const recordLoading = ref(false)
 const actionLoading = ref(false)
 const borrowDialog = ref(false)
 const renewDialog = ref(false)
+// 当前选中的图书或借阅记录，弹窗提交时会使用它们的 ID。
 const selectedBook = ref(null)
 const selectedRecord = ref(null)
 const borrowDueDate = ref('')
 const renewDueDate = ref('')
 
+// 把 JavaScript Date 转成后端 LocalDate 可以接收的 YYYY-MM-DD。
 const toDateString = date => date.toISOString().slice(0, 10)
+
+/** 返回指定月数后的新日期，不直接修改传入的原日期。 */
 function addMonths(date, months) {
   const next = new Date(date)
   next.setMonth(next.getMonth() + months)
   return next
 }
+/** 返回指定天数后的新日期，默认借书日期会使用今天加 30 天。 */
 function addDays(date, days) {
   const next = new Date(date)
   next.setDate(next.getDate() + days)
   return next
 }
+/**
+ * 把时、分、秒清零，只比较“日期”部分。
+ * 如果不清零，今天凌晨和今天下午可能因为时间不同被错误判断。
+ */
 function normalize(date) {
   const next = new Date(date)
   next.setHours(0, 0, 0, 0)
   return next
 }
 
+/** 根据关键词和分类查询前 12 本馆藏图书。 */
 async function fetchBooks() {
   bookLoading.value = true
   try {
     books.value = (await getPublicBooks({ current: 1, size: 12, keyword: keyword.value, category: category.value })).data.records || []
   } finally { bookLoading.value = false }
 }
+/** 搜索按钮、回车和分类变化最终都重新查询图书。 */
 function search() { fetchBooks() }
+
+/** 加载分类下拉框。 */
 async function fetchCategories() { categories.value = (await getPublicCategories()).data || [] }
+
+/** 查询当前登录读者的借阅记录。 */
 async function fetchBorrows() {
   recordLoading.value = true
   try { records.value = (await getUserBorrows({ current: 1, size: 20 })).data.records || [] }
   finally { recordLoading.value = false }
 }
 
+/**
+ * 打开借书弹窗。
+ * 默认应还日期为 30 天后，用户仍可以在允许范围内修改。
+ */
 function openBorrow(book) {
   selectedBook.value = book
   borrowDueDate.value = toDateString(addDays(new Date(), 30))
   borrowDialog.value = true
 }
+/**
+ * 确认借书：发送图书 ID 和应还日期。
+ * 成功后同时刷新馆藏和借阅记录，因为库存与记录都已经发生变化。
+ */
 async function confirmBorrow() {
   if (!borrowDueDate.value) { ElMessage.warning('请选择还书日期'); return }
   actionLoading.value = true
@@ -163,11 +199,13 @@ async function confirmBorrow() {
     fetchBorrows()
   } finally { actionLoading.value = false }
 }
+/** 打开续借弹窗，默认先显示当前应还日期。 */
 function openRenew(row) {
   selectedRecord.value = row
   renewDueDate.value = row.dueDate
   renewDialog.value = true
 }
+/** 提交新的应还日期，成功后刷新借阅记录。 */
 async function confirmRenew() {
   if (!renewDueDate.value) { ElMessage.warning('请选择还书日期'); return }
   actionLoading.value = true
@@ -178,25 +216,40 @@ async function confirmRenew() {
     fetchBorrows()
   } finally { actionLoading.value = false }
 }
+/**
+ * 借书日期选择限制：不能选择今天以前，也不能超过今天后的 6 个月。
+ * 这里用于改善操作体验；后端还会执行相同规则，防止绕过页面直接请求接口。
+ */
 function disabledBorrowDate(date) {
   const current = normalize(date)
   const today = normalize(new Date())
   return current < today || current > normalize(addMonths(today, 6))
 }
+/**
+ * 续借日期限制：不能早于今天，且不能超过“原借出日期 + 6 个月”。
+ * 注意上限从原借出日期计算，不是从点击续借的当天重新计算。
+ */
 function disabledRenewDate(date) {
   const current = normalize(date)
   const today = normalize(new Date())
   const borrowDate = selectedRecord.value?.borrowDate ? normalize(new Date(selectedRecord.value.borrowDate)) : today
   return current < today || current > normalize(addMonths(borrowDate, 6))
 }
+/** 把数字状态转换成用户能读懂的中文。 */
 function statusText(status) { return status === 0 ? '借阅中' : status === 1 ? '已归还' : '逾期' }
+
+/** 不同状态使用不同颜色的 Element Plus 标签。 */
 function statusType(status) { return status === 0 ? 'warning' : status === 1 ? 'success' : 'danger' }
+
+/** 退出时同时清除后端 Session 和浏览器中的读者标记。 */
 async function logout() { await userLogout().catch(() => {}); sessionStorage.removeItem('readerId'); sessionStorage.removeItem('readerName'); router.push('/user/login') }
 
+// 页面首次显示时并行准备分类、馆藏和借阅记录。
 onMounted(() => { fetchCategories(); fetchBooks(); fetchBorrows() })
 </script>
 
 <style scoped>
+/* 读者首页的馆藏卡片、借阅表格和移动端布局。 */
 .user-page { min-height: 100vh; padding: 24px; background: #f5f7fb; }
 .user-head, .catalog, .records { max-width: 1180px; margin: 0 auto 18px; }
 .user-head { display: flex; align-items: center; justify-content: space-between; padding: 26px; border-radius: 8px; color: #fff; background: #172033; }

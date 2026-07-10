@@ -1,5 +1,6 @@
 ﻿<template>
   <div class="login-page">
+    <!-- 左侧品牌区域，并提供进入读者登录页的入口。 -->
     <section class="login-hero">
       <router-link class="user-entry" to="/user/login">
         <el-icon><User /></el-icon>
@@ -12,6 +13,7 @@
       </div>
     </section>
 
+    <!-- 右侧管理员登录表单。 -->
     <section class="login-panel">
       <div class="panel-head">
         <h2>管理员登录</h2>
@@ -38,16 +40,27 @@ import { Lock, User } from '@element-plus/icons-vue'
 import { login } from '@/api'
 import { useUserStore } from '@/stores/user'
 
+// 路由对象：登录成功后跳转到后台首页。
 const router = useRouter()
+
+// 管理员共享状态：保存账号、姓名和角色，供布局和权限判断使用。
 const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
+// 演示环境默认填入系统管理员账号，学习时可以直接观察登录流程。
 const form = reactive({ username: 'admin', password: '123456' })
+
+// 表单校验：账号和密码都不能为空。
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+/**
+ * 管理员登录流程：
+ * 1. 前端检查必填项；2. 调用 /login；3. 保存管理员信息；4. 跳转后台。
+ * loading 用于防止请求过程中重复点击按钮。
+ */
 async function doLogin() {
   const valid = await formRef.value.validate().catch(() => false)
   if (!valid) return
@@ -64,6 +77,7 @@ async function doLogin() {
 </script>
 
 <style scoped>
+/* 登录页采用左侧图片、右侧表单的双栏布局。 */
 .login-page {
   min-height: 100vh;
   display: grid;
